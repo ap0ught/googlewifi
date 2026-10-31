@@ -1,11 +1,16 @@
 # Google Wifi Dump
 
-googlewifidump will download, parse, and print a JSON version of the Google Wifi
-diagnostic report. It's a command from the
-[googlewifi](https://github.com/bengalaviz/googlewifi) Go package.
+googlewifidump downloads and prints JSON from a Google Wifi device. It first tries
+the historical diagnostic-report endpoint and automatically falls back to the
+current status endpoint when the router returns HTTP 404.
 
-This repo has been updated to read the new protobuf output from the Google Wifi pucks. Not
-sure if it works for the OnHub version. 
+This repository is a fork of the
+[googlewifi](https://github.com/bengalaviz/googlewifi) Go package. The historical
+protobuf parser is still used for diagnostic-report responses; current firmware
+normally returns a status document instead.
+
+The current status response includes device role, model, firmware, LED state,
+WAN state, and update state. It is not the router's private diagnostic log.
 
 ## Installation
 
@@ -15,69 +20,54 @@ go get github.com/bengalaviz/googlewifi/cmd/googlewifidump
 
 ## Running
 
-```sh
-googlewifidump
+With no argument, `googlewifidump` queries:
+
+```text
+http://192.168.86.1/api/v1/diagnostic-report
 ```
 
-This returns a JSON dump of the data from `http://192.168.86.1/api/v1/diagnostic-report`.
+If that endpoint returns HTTP 404, as it does on current firmware, the tool
+automatically retries:
 
-If you use a different subnet for your router:
+```text
+http://192.168.86.1/api/v1/status
+```
+
+You can provide a different device or subnet:
 
 ```sh
 googlewifidump http://192.168.85.1/api/v1/diagnostic-report
 ```
 
-If you want to run against a local, already downloaded dump:
+You can also run against a local, already-downloaded diagnostic report or status
+response:
 
 ```sh
 googlewifidump ./path/to/diagnostic-report
+googlewifidump ./path/to/status.json
 ```
 
-You will likely want to either save a copy of the diagnostic report or save a
-copy of the parsed output from googlewifidump rather than re-running the command as
-generating the report takes a few seconds each time.
+For current firmware, download the status response directly:
 
 ```sh
-curl -o diagnostic-report http://192.168.86.1/api/v1/diagnostic-report
-googlewifidump ./diagnostic-report
+curl -o status.json http://192.168.86.1/api/v1/status
+googlewifidump ./status.json | jq
 ```
 
-Alternatively:
+The fallback applies only when the diagnostic-report request returns HTTP 404.
+Other HTTP errors are reported instead of being silently replaced.
+
+You will likely want to save a copy of the response or parsed output rather than
+re-running the command. The diagnostic-report endpoint can take a few seconds to
+generate when it is available.
 
 ```sh
-googlewifidump > diagnostic-report.json
+googlewifidump > googlewifi.json
 ```
 
 Use the [jq](https://stedolan.github.io/jq/) tool to format and manipulate
 output on the command line.
 
-Unbuffered:
-
 ```sh
 googlewifidump | jq
-```
-
-Buffered report:
-
-```sh
-curl -o diagnostic-report http://192.168.86.1/api/v1/diagnostic-report
-googlewifidump ./diagnostic-report | jq
-```
-
-Buffered output:
-
-```sh
-onhubdump > diagnostic-report.json
-jq < diagnostic-report.json
-```
-
-I have included a script (getInfo.sh) that will try and fix the infoJSON output and make it valid JSON.
-Make sure the output binary is in your path before running.
-
-Then use [hjson](https://hjson.org) tool to correct the JSON so jq can read it.
-
-```sh
-hjson -j final.json | jq '.'
-
-hjson -j final.json | jq '.network_service_state.station_state_updates | .[] | .station_state_update'
 ```
