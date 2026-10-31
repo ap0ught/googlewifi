@@ -7,7 +7,7 @@ import org.kde.plasma.components 3.0 as PlasmaComponents
 
 PlasmoidItem {
     id: root
-    preferredRepresentation: fullRepresentation
+    preferredRepresentation: compactRepresentation
     property var report: ({})
     property string selectedHost: ""
     property string command: "googlewifimon --json --ping-count 3"
@@ -50,12 +50,23 @@ PlasmoidItem {
 
     Component.onCompleted: commandSource.refresh()
 
-    compactRepresentation: PlasmaComponents.Label {
-        text: root.selectedStatus()
-        color: root.selectedColor()
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+    compactRepresentation: Item {
+        implicitWidth: 110
+        implicitHeight: 28
+
+        PlasmaComponents.Label {
+            anchors.fill: parent
+            text: root.selectedStatus()
+            color: root.selectedColor()
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: Plasmoid.expanded = true
+        }
     }
 
     fullRepresentation: Rectangle {
