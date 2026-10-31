@@ -103,7 +103,7 @@ PlasmoidItem {
                 spacing: 6
 
                 PlasmaComponents.Label {
-                    text: "192.168.86.1 · " + root.hostState("192.168.86.1")
+                    text: "192.168.86.1 · " + root.hostState("192.168.86.1") + " · " + root.lastLatency("192.168.86.1")
                     color: root.hostColor("192.168.86.1")
                 }
                 Canvas {
@@ -115,7 +115,7 @@ PlasmoidItem {
                 }
 
                 PlasmaComponents.Label {
-                    text: "192.168.86.23 · " + root.hostState("192.168.86.23")
+                    text: "192.168.86.23 · " + root.hostState("192.168.86.23") + " · " + root.lastLatency("192.168.86.23")
                     color: root.hostColor("192.168.86.23")
                 }
                 Canvas {
