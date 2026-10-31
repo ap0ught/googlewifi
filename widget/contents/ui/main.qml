@@ -12,6 +12,7 @@ PlasmoidItem {
     property string selectedHost: ""
     property string command: "googlewifimon --json --ping-count 3"
     property string errorText: ""
+    property int requestId: 0
 
     Plasma5Support.DataSource {
         id: commandSource
@@ -19,12 +20,12 @@ PlasmoidItem {
         connectedSources: []
 
         function refresh() {
-            connectSource(root.command)
+            root.requestId += 1
+            connectedSources = [root.command + " # " + root.requestId]
         }
 
         onNewData: function(sourceName, data) {
-            if (sourceName !== root.command) return
-            var raw = data["stdout"] || ""
+            var raw = (data && data["stdout"] !== undefined) ? data["stdout"] : ""
             try {
                 var text = String(raw).trim()
                 var parsed = JSON.parse(text)
