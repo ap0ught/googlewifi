@@ -7,7 +7,7 @@ import org.kde.plasma.components 3.0 as PlasmaComponents
 
 PlasmoidItem {
     id: root
-    preferredRepresentation: compactRepresentation
+    preferredRepresentation: fullRepresentation
     property var report: ({})
     property string selectedHost: ""
     property string command: "googlewifimon --json --ping-count 3"
@@ -32,7 +32,8 @@ PlasmoidItem {
                 root.errorText = ""
                 if (root.selectedHost === "" && root.report.hosts)
                     root.selectedHost = Object.keys(root.report.hosts)[0]
-                graph.requestPaint()
+                graphRoot.requestPaint()
+                graphMesh.requestPaint()
             } catch (e) {
                 if (!root.report.hosts)
                     root.errorText = "Monitor output could not be parsed"
@@ -50,23 +51,12 @@ PlasmoidItem {
 
     Component.onCompleted: commandSource.refresh()
 
-    compactRepresentation: Item {
-        implicitWidth: 110
-        implicitHeight: 28
-
-        PlasmaComponents.Label {
-            anchors.fill: parent
-            text: root.selectedStatus()
-            color: root.selectedColor()
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: Plasmoid.expanded = true
-        }
+    compactRepresentation: PlasmaComponents.Label {
+        text: root.selectedStatus()
+        color: root.selectedColor()
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
     }
 
     fullRepresentation: Rectangle {
@@ -96,57 +86,106 @@ PlasmoidItem {
                 PlasmaComponents.Label { text: root.lastUpdated() }
             }
 
-            Controls.ComboBox {
-                id: hostSelector
-                Layout.fillWidth: true
-                model: root.report.hosts ? Object.keys(root.report.hosts) : []
-                currentIndex: Math.max(0, model.indexOf(root.selectedHost))
-                onActivated: root.selectedHost = currentText
-            }
-
             PlasmaComponents.Label {
                 visible: root.errorText !== "" && !root.report.hosts
                 text: root.errorText
                 color: "#f28b82"
             }
 
-            Canvas {
-                id: graph
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.reset()
-                    ctx.fillStyle = "#292a2d"
-                    ctx.fillRect(0, 0, width, height)
-                    var points = root.samples()
-                    if (!points.length) return
-                    var max = 10
-                    for (var i = 0; i < points.length; i++) max = Math.max(max, points[i].ping_avg_ms || 0)
-                    ctx.strokeStyle = "#8ab4f8"
-                    ctx.lineWidth = 2
-                    ctx.beginPath()
-                    for (var j = 0; j < points.length; j++) {
-                        var x = points.length === 1 ? 0 : j * width / (points.length - 1)
-                        var y = height - ((points[j].ping_avg_ms || 0) / max) * (height - 12) - 6
-                        if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
-                    }
-                    ctx.stroke()
-                    ctx.fillStyle = "#bdc1c6"
-                    ctx.font = "12px sans-serif"
-                    ctx.fillText("latency (ms), last " + points.length + " checks", 8, 16)
-                    ctx.fillText(max.toFixed(0) + " ms", 8, height - 6)
-                    ctx.fillText("0 ms", width - 40, height - 6)
+                spacing: 6
+
+                PlasmaComponents.Label {
+                    text: root.hostTitle(root.hostAt(0))
+                    color: root.hostColor(root.hostAt(0))
+                }
+                Canvas {
+                    id: graphRoot
+                    property string host: root.hostAt(0)
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    onPaint: root.paintGraph(this, host)
+                }
+
+                PlasmaComponents.Label {
+                    text: root.hostTitle(root.hostAt(1))
+                    color: root.hostColor(root.hostAt(1))
+                }
+                Canvas {
+                    id: graphMesh
+                    property string host: root.hostAt(1)
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    onPaint: root.paintGraph(this, host)
                 }
             }
 
             PlasmaComponents.Label {
                 Layout.fillWidth: true
-                text: root.selectedReason()
+                text: root.overallReason()
                 color: "#bdc1c6"
                 elide: Text.ElideRight
             }
         }
+    }
+
+    function hostAt(index) {
+        var hosts = report.hosts ? Object.keys(report.hosts) : []
+        return hosts.length > index ? hosts[index] : ""
+    }
+    function hostTitle(host) {
+        if (!host) return "Waiting for monitor data"
+        var state = report.hosts[host]
+        return host + " · " + (state ? state.state : "UNKNOWN")
+    }
+    function hostColor(host) {
+        var state = report.hosts && host ? report.hosts[host] : null
+        var value = state ? state.state : "UNKNOWN"
+        if (value === "OK") return "#81c995"
+        if (value === "WARNING") return "#fdd663"
+        if (value === "CRITICAL") return "#f28b82"
+        return "#bdc1c6"
+    }
+    function paintGraph(canvas, host) {
+        var ctx = canvas.getContext("2d")
+        ctx.reset()
+        ctx.fillStyle = "#292a2d"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        var points = report.samples && host ? (report.samples[host] || []) : []
+        if (!points.length) {
+            ctx.fillStyle = "#bdc1c6"
+            ctx.font = "12px sans-serif"
+            ctx.fillText("waiting for samples", 8, 18)
+            return
+        }
+        var max = 10
+        for (var i = 0; i < points.length; i++) max = Math.max(max, points[i].ping_avg_ms || 0)
+        ctx.strokeStyle = "#8ab4f8"
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        for (var j = 0; j < points.length; j++) {
+            var x = points.length === 1 ? 0 : j * canvas.width / (points.length - 1)
+            var y = canvas.height - ((points[j].ping_avg_ms || 0) / max) * (canvas.height - 12) - 6
+            if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+        }
+        ctx.stroke()
+        ctx.fillStyle = "#bdc1c6"
+        ctx.font = "12px sans-serif"
+        ctx.fillText("latency (ms), last " + points.length + " checks", 8, 16)
+        ctx.fillText(max.toFixed(0) + " ms", 8, canvas.height - 6)
+        ctx.fillText("0 ms", canvas.width - 40, canvas.height - 6)
+    }
+    function overallReason() {
+        var hosts = report.hosts ? Object.keys(report.hosts) : []
+        if (!hosts.length) return "Waiting for monitor"
+        var parts = []
+        for (var i = 0; i < hosts.length; i++) {
+            var state = report.hosts[hosts[i]]
+            parts.push(hosts[i] + ": " + state.reason)
+        }
+        return parts.join(" · ")
     }
 
     function selectedHostState() {
