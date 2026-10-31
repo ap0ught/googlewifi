@@ -200,11 +200,24 @@ func save(path string, db database) error {
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err = os.WriteFile(tmp, data, 0600); err != nil {
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".googlewifimon-*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(0600); err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
 }
 func defaultStatePath() string {
 	h, err := os.UserHomeDir()
