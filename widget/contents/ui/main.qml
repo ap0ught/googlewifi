@@ -84,6 +84,10 @@ PlasmoidItem {
                     text: root.selectedStatus()
                     color: root.selectedColor()
                 }
+                PlasmaComponents.Label {
+                    text: root.lastLatency("192.168.86.1")
+                    color: "#bdc1c6"
+                }
                 PlasmaComponents.Label { text: root.lastUpdated() }
             }
 
@@ -193,6 +197,11 @@ PlasmoidItem {
         return parts.join(" · ")
     }
 
+    function lastLatency(host) {
+        var points = report.samples && report.samples[host] ? report.samples[host] : []
+        if (!points.length) return "last -- ms"
+        return "last " + Number(points[points.length - 1].ping_avg_ms || 0).toFixed(1) + " ms"
+    }
     function selectedHostState() {
         return report.hosts && selectedHost ? report.hosts[selectedHost] : null
     }
