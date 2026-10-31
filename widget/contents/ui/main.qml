@@ -178,9 +178,9 @@ PlasmoidItem {
         ctx.stroke()
         ctx.fillStyle = "#bdc1c6"
         ctx.font = "12px sans-serif"
-        ctx.fillText("latency (ms), last " + points.length + " checks", 8, 16)
-        ctx.fillText(max.toFixed(0) + " ms", 8, canvas.height - 6)
-        ctx.fillText("0 ms", canvas.width - 40, canvas.height - 6)
+        ctx.fillText("latency (ms), last " + points.length + " checks", 90, 16)
+        ctx.fillText(max.toFixed(0) + " ms", 8, 16)
+        ctx.fillText("0 ms", 8, canvas.height - 6)
     }
     function overallReason() {
         var hosts = report.hosts ? Object.keys(report.hosts) : []
