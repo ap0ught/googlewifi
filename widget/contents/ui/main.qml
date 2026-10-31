@@ -98,25 +98,27 @@ PlasmoidItem {
                 spacing: 6
 
                 PlasmaComponents.Label {
-                    text: root.hostTitle(root.hostAt(0))
-                    color: root.hostColor(root.hostAt(0))
+                    text: "192.168.86.1 · " + root.hostState("192.168.86.1")
+                    color: root.hostColor("192.168.86.1")
                 }
                 Canvas {
                     id: graphRoot
+                    property string host: "192.168.86.1"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    onPaint: root.paintGraph(this, root.hostAt(0))
+                    onPaint: root.paintGraph(this, "192.168.86.1")
                 }
 
                 PlasmaComponents.Label {
-                    text: root.hostTitle(root.hostAt(1))
-                    color: root.hostColor(root.hostAt(1))
+                    text: "192.168.86.23 · " + root.hostState("192.168.86.23")
+                    color: root.hostColor("192.168.86.23")
                 }
                 Canvas {
                     id: graphMesh
+                    property string host: "192.168.86.23"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    onPaint: root.paintGraph(this, root.hostAt(1))
+                    onPaint: root.paintGraph(this, "192.168.86.23")
                 }
             }
 
@@ -129,6 +131,10 @@ PlasmoidItem {
         }
     }
 
+    function hostState(host) {
+        var state = report.hosts && report.hosts[host]
+        return state ? state.state : "WAITING"
+    }
     function hostAt(index) {
         var hosts = report.hosts ? Object.keys(report.hosts) : []
         return hosts.length > index ? hosts[index] : ""
