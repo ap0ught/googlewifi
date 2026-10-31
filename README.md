@@ -71,3 +71,53 @@ output on the command line.
 ```sh
 googlewifidump | jq
 ```
+
+## Scheduled health monitoring
+
+`googlewifimon` checks the root and mesh points, stores the current state, and
+keeps only state changes in a compact JSON history. Repeated healthy checks are
+condensed instead of creating a new event each time, similar to Nagios state
+tracking.
+
+Build it:
+
+```sh
+go build -o "$HOME/.local/bin/googlewifimon" ./cmd/googlewifimon
+```
+
+Run one check:
+
+```sh
+googlewifimon
+```
+
+By default it checks `192.168.86.1` and `192.168.86.23`. Add other devices with
+repeated `-host` flags. The state file defaults to:
+
+```text
+~/.local/state/googlewifimon/state.json
+```
+
+Use it as a continuously running monitor:
+
+```sh
+googlewifimon -interval 1m
+```
+
+Or run one check from cron every minute:
+
+```cron
+* * * * * /home/YOUR_USER/.local/bin/googlewifimon >> /home/YOUR_USER/.local/state/googlewifimon/monitor.log 2>&1
+```
+
+The monitor reports Nagios-compatible exit status values for one-shot checks:
+
+- `0`: all devices are OK
+- `1`: warning or unknown state
+- `2`: critical state
+
+A mesh point's `wan.online=false` and `wan.ethernetLink=false` are not treated as
+failures because a wireless leaf normally has no direct WAN connection. The
+monitor instead checks the status endpoint, role, LED state, packet loss, and
+latency. It records transitions such as `OK -> CRITICAL` in the state file and
+retains the most recent 1,000 transitions.
