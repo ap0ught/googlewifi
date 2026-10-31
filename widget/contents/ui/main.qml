@@ -106,8 +106,6 @@ PlasmoidItem {
                     property string host: "192.168.86.1"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Layout.minimumHeight: 80
-                    Layout.preferredHeight: 120
                     onPaint: root.paintGraph(this, "192.168.86.1")
                 }
 
@@ -120,8 +118,6 @@ PlasmoidItem {
                     property string host: "192.168.86.23"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    Layout.minimumHeight: 80
-                    Layout.preferredHeight: 120
                     onPaint: root.paintGraph(this, "192.168.86.23")
                 }
             }
