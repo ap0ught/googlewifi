@@ -26,13 +26,16 @@ PlasmoidItem {
             if (sourceName !== root.command) return
             var raw = data["stdout"] || ""
             try {
-                root.report = JSON.parse(raw)
+                var text = String(raw).trim()
+                var parsed = JSON.parse(text)
+                root.report = parsed
                 root.errorText = ""
                 if (root.selectedHost === "" && root.report.hosts)
                     root.selectedHost = Object.keys(root.report.hosts)[0]
                 graph.requestPaint()
             } catch (e) {
-                root.errorText = "Monitor output could not be parsed"
+                if (!root.report.hosts)
+                    root.errorText = "Monitor output could not be parsed"
             }
             disconnectSource(sourceName)
         }
@@ -91,7 +94,7 @@ PlasmoidItem {
             }
 
             PlasmaComponents.Label {
-                visible: root.errorText !== ""
+                visible: root.errorText !== "" && !root.report.hosts
                 text: root.errorText
                 color: "#f28b82"
             }
