@@ -103,10 +103,9 @@ PlasmoidItem {
                 }
                 Canvas {
                     id: graphRoot
-                    property string host: root.hostAt(0)
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    onPaint: root.paintGraph(this, host)
+                    onPaint: root.paintGraph(this, root.hostAt(0))
                 }
 
                 PlasmaComponents.Label {
@@ -115,10 +114,9 @@ PlasmoidItem {
                 }
                 Canvas {
                     id: graphMesh
-                    property string host: root.hostAt(1)
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    onPaint: root.paintGraph(this, host)
+                    onPaint: root.paintGraph(this, root.hostAt(1))
                 }
             }
 
