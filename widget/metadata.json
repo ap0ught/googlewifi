@@ -1,0 +1,16 @@
+{
+  "KPackageStructure": "Plasma/Applet",
+  "KPlugin": {
+    "Authors": [{ "Email": "", "Name": "ap0ught" }],
+    "Category": "Utilities",
+    "Description": "Google Wifi mesh health and latency history",
+    "Icon": "network-wireless",
+    "Id": "com.ap0ught.googlewifi.monitor",
+    "License": "MIT",
+    "Name": "Google Wifi Monitor",
+    "Version": "1.0.0"
+  },
+  "X-Plasma-API": "declarativeappletscript",
+  "X-Plasma-API-Minimum-Version": "6.0",
+  "X-Plasma-MainScript": "ui/main.qml"
+}

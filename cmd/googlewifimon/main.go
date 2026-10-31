@@ -29,13 +29,22 @@ type statusResponse struct {
 }
 
 type database struct {
-	Hosts  map[string]monitor.HostState `json:"hosts"`
-	Events []event                      `json:"events"`
+	Hosts   map[string]monitor.HostState `json:"hosts"`
+	Events  []event                      `json:"events"`
+	Samples map[string][]sample          `json:"samples"`
 }
 type event struct {
 	Host string `json:"host"`
 	monitor.Event
 }
+type sample struct {
+	At        time.Time     `json:"at"`
+	State     monitor.State `json:"state"`
+	PingLoss  float64       `json:"ping_loss_percent"`
+	PingAvgMS float64       `json:"ping_avg_ms"`
+}
+
+var machineOutput bool
 
 var pingRE = regexp.MustCompile(`([0-9.]+)% packet loss`)
 var rttRE = regexp.MustCompile(`= [0-9.]+/([0-9.]+)/`)
@@ -46,7 +55,9 @@ func main() {
 	statePath := flag.String("state", defaultStatePath(), "JSON state/history file")
 	interval := flag.Duration("interval", 0, "repeat checks at this interval; 0 runs once")
 	pingCount := flag.Int("ping-count", 5, "ICMP packets per check")
+	jsonOutput := flag.Bool("json", false, "print the complete state as JSON")
 	flag.Parse()
+	machineOutput = *jsonOutput
 	if len(hosts) == 0 {
 		hosts = stringList{"192.168.86.1", "192.168.86.23"}
 	}
@@ -59,6 +70,9 @@ func main() {
 		if db.Hosts == nil {
 			db.Hosts = map[string]monitor.HostState{}
 		}
+		if db.Samples == nil {
+			db.Samples = map[string][]sample{}
+		}
 		now := time.Now().UTC()
 		worst := monitor.StateOK
 		for _, host := range hosts {
@@ -68,6 +82,11 @@ func main() {
 		}
 		if err := save(*statePath, db); err != nil {
 			fail("saving state: %v", err)
+		}
+		if machineOutput {
+			if err := json.NewEncoder(os.Stdout).Encode(db); err != nil {
+				fail("encoding state: %v", err)
+			}
 		}
 		if *interval <= 0 {
 			os.Exit(exitCode(worst))
@@ -105,13 +124,19 @@ func check(host string, db *database, now time.Time, pingCount int) monitor.Resu
 	old := db.Hosts[host]
 	change := monitor.Condense(&old, result, now)
 	db.Hosts[host] = old
+	db.Samples[host] = append(db.Samples[host], sample{At: now, State: result.State, PingLoss: input.PingLoss, PingAvgMS: input.PingAvgMS})
+	if len(db.Samples[host]) > 1440 {
+		db.Samples[host] = db.Samples[host][len(db.Samples[host])-1440:]
+	}
 	if change != nil {
 		db.Events = append(db.Events, event{Host: host, Event: *change})
 		if len(db.Events) > 1000 {
 			db.Events = db.Events[len(db.Events)-1000:]
 		}
-		fmt.Printf("CHANGE %s %s -> %s - %s\n", host, change.Previous, change.State, change.Reason)
-	} else {
+		if !machineOutput {
+			fmt.Printf("CHANGE %s %s -> %s - %s\n", host, change.Previous, change.State, change.Reason)
+		}
+	} else if !machineOutput {
 		fmt.Printf("%s %s - %s (checks=%d consecutive=%d)\n", host, result.State, result.Reason, old.Checks, old.Consecutive)
 	}
 	return result
