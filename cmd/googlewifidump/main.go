@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 type loadMode int
@@ -34,16 +35,21 @@ func main() {
 	var reader io.Reader
 	switch mode {
 	case viaHTTP:
-		resp, err := http.Get(source)
+		data, contentType, resolvedSource, err := fetchReport(source)
 		if err != nil {
 			log.Fatalln("error getting report:", err)
 		}
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				log.Fatalln("error closing gotten report:", err)
+		if strings.Contains(contentType, "application/json") {
+			var value interface{}
+			if err := json.Unmarshal(data, &value); err != nil {
+				log.Fatalln("error parsing JSON from", resolvedSource, ":", err)
 			}
-		}()
-		reader = resp.Body
+			if err := json.NewEncoder(os.Stdout).Encode(value); err != nil {
+				log.Fatalln("error encoding JSON:", err)
+			}
+			return
+		}
+		reader = strings.NewReader(string(data))
 	case viaFile:
 		file, err := os.Open(source)
 		if err != nil {
@@ -74,3 +80,53 @@ func main() {
 		log.Fatalln("error encoding report:", err)
 	}
 }
+
+func statusFallbackURL(source string) (string, error) {
+	u, err := url.Parse(source)
+	if err != nil {
+		return "", err
+	}
+	u.Path = "/api/v1/status"
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String(), nil
+}
+
+func fetchReport(source string) ([]byte, string, string, error) {
+	resp, err := http.Get(source)
+	if err != nil {
+		return nil, "", source, err
+	}
+	defer resp.Body.Close()
+	data, readErr := ioutil.ReadAll(resp.Body)
+	if readErr != nil {
+		return nil, "", source, readErr
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		fallback, err := statusFallbackURL(source)
+		if err != nil {
+			return nil, "", source, err
+		}
+		fallbackResp, err := http.Get(fallback)
+		if err != nil {
+			return nil, "", fallback, err
+		}
+		defer fallbackResp.Body.Close()
+		fallbackData, err := ioutil.ReadAll(fallbackResp.Body)
+		if err != nil {
+			return nil, "", fallback, err
+		}
+		if fallbackResp.StatusCode < 200 || fallbackResp.StatusCode >= 300 {
+			return nil, "", fallback, &httpError{status: fallbackResp.StatusCode}
+		}
+		return fallbackData, fallbackResp.Header.Get("Content-Type"), fallback, nil
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, "", source, &httpError{status: resp.StatusCode}
+	}
+	return data, resp.Header.Get("Content-Type"), source, nil
+}
+
+type httpError struct{ status int }
+
+func (e *httpError) Error() string { return "HTTP status " + http.StatusText(e.status) }
