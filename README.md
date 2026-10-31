@@ -121,3 +121,30 @@ failures because a wireless leaf normally has no direct WAN connection. The
 monitor instead checks the status endpoint, role, LED state, packet loss, and
 latency. It records transitions such as `OK -> CRITICAL` in the state file and
 retains the most recent 1,000 transitions.
+
+## Plasma 6 desktop widget
+
+The repository includes a Plasma 6 widget that calls `googlewifimon --json` and
+shows both router graphs. Each graph plots the most recent latency samples and
+shows the current API-derived health state beside the device address.
+
+Build and install the monitor and widget:
+
+```sh
+go build -o "$HOME/.local/bin/googlewifimon" ./cmd/googlewifimon
+rm -f /tmp/googlewifi-monitor.plasmoid
+(cd widget && zip -qr /tmp/googlewifi-monitor.plasmoid .)
+kpackagetool6 --type Plasma/Applet --install /tmp/googlewifi-monitor.plasmoid
+```
+
+Add it to the desktop:
+
+1. Right-click the Plasma desktop and choose `Enter Edit Mode`.
+2. Choose `Add Widgets`.
+3. Search for `Google Wifi Monitor`.
+4. Drag it onto the desktop or click `Add`.
+5. Click the widget to open the expanded view with both graphs.
+
+The widget reads the bounded history in
+`~/.local/state/googlewifimon/state.json`. Run `googlewifimon` periodically
+with cron or `-interval` so new samples are available for the graphs.
